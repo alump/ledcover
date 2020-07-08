@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo Disable leds...
+i2cset -y 2 0x55 0x00 0x01
