@@ -200,46 +200,56 @@ inline float getProgress() {
   return getModeMem(0) / 255.0;
 }
 
+uint32_t mixColors(uint32_t a, uint32_t b) {
+  uint32_t c = 0;
+
+  c += (((a >> 24) + (b >> 24)) >> 2) << 24;
+  c += ((((a & 0xFF0000) >> 16) + ((b & 0xFF0000) >> 16)) >> 2) << 16;
+  c += ((((a & 0xFF00) >> 8) + ((b & 0xFF00) >> 8)) >> 2) << 8;
+  c += (((a & 0xFF) + (b & 0xFF)) >> 2);
+
+  return c;
+}
+
+void pieCircle(unsigned int ringSize, float progress, unsigned char * leds, uint32_t * colors) {
+  int turnOn = (int)floor(ringSize * progress);
+  int almostThere = (int)round(ringSize * progress);
+  for(unsigned int i = 0; i < ringSize; ++i) {
+    if (i < turnOn) {
+      pixels.setPixelColor(leds[i], colors[0]);
+    } else if (i < almostThere) {
+      pixels.setPixelColor(leds[i], colors[1]);
+    } else {
+      pixels.setPixelColor(leds[i], colors[2]);      
+    }
+  }
+}
+
 void pieChartLoop(int loop) {
   pixels.clear();
   
   float progress = getProgress();
   byte brightness = getModeMemNotZero(1, 255);
 
+  // Blink when ready
+  if(progress >= 1.0 && (loop >> 3) % 2 == 1) {
+    brightness = 0;
+  }
+
   uint32_t offColor = getColor(0, 3, brightness);
   uint32_t onColor = getColor(1, 3, brightness);
+  uint32_t colors[] = { onColor, mixColors(onColor, offColor), offColor };
 
-  int turnOn = (int)round(OUTER_RING_SIZE * progress);
-  for(int i = 0; i < OUTER_RING_SIZE; ++i) {
-    if (i < turnOn) {
-      pixels.setPixelColor(OUT_CIRCLE[i], onColor);
-    } else {
-      pixels.setPixelColor(OUT_CIRCLE[i], offColor);      
-    }
-  }
+  pieCircle(OUTER_RING_SIZE, progress, OUT_CIRCLE, colors);
+  pieCircle(MID_RING_SIZE, progress, MID_CIRCLE, colors);
+  pieCircle(INNER_RING_SIZE, progress, IN_CIRCLE, colors);
 
-  turnOn = ((int)round(MID_RING_SIZE * progress));
-  for(int i = 0; i < MID_RING_SIZE; ++i) {
-    if (i < turnOn) {
-      pixels.setPixelColor(MID_CIRCLE[i], onColor);
-    } else {
-      pixels.setPixelColor(MID_CIRCLE[i], offColor);      
-    }
-  }
-
-  turnOn = ((int)round(INNER_RING_SIZE * progress));
-  for(int i = 0; i < INNER_RING_SIZE; ++i) {
-    if (i < turnOn) {
-      pixels.setPixelColor(IN_CIRCLE[i], onColor);
-    } else {
-      pixels.setPixelColor(IN_CIRCLE[i], offColor);
-    }
-  }
-
-  if(progress > 0.5) {
+  if(progress > 0.66) {
     pixels.setPixelColor(ORIGO_LED, onColor);
-  } else {
+  } else if(progress < 0.33) {
     pixels.setPixelColor(ORIGO_LED, offColor);
+  } else {
+    pixels.setPixelColor(ORIGO_LED, colors[1]);
   }
 
   pixels.show();
